@@ -14,17 +14,16 @@
 
   <style>
     :root {
-      --bg:      #080c14;
-      --bg2:     #0f1625;
-      --bg3:     #1a2235;
-      --border:  #1e2d45;
-      --text:    #dce8ff;
-      --muted:   #4a6080;
-      --dim:     #2a3d58;
-      --amber:   #f5a623;
-      --red:     #ff3b3b;
-      --green:   #00e676;
-      --blue:    #4fc3f7;
+      --bg:     #080c14;
+      --bg2:    #0f1625;
+      --bg3:    #1a2235;
+      --border: #1e2d45;
+      --text:   #dce8ff;
+      --muted:  #4a6080;
+      --dim:    #2a3d58;
+      --amber:  #f5a623;
+      --red:    #ff3b3b;
+      --green:  #00e676;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,7 +35,6 @@
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
-      overflow-x: hidden;
     }
 
     /* ── HEADER ── */
@@ -118,15 +116,8 @@
       justify-content: center;
       gap: 0.5rem;
     }
-    .btn-primary.start {
-      background: var(--amber);
-      color: #000;
-    }
-    .btn-primary.stop {
-      background: transparent;
-      color: var(--red);
-      border: 1px solid var(--red);
-    }
+    .btn-primary.start { background: var(--amber); color: #000; }
+    .btn-primary.stop  { background: transparent; color: var(--red); border: 1px solid var(--red); }
     .btn-primary:active { opacity: 0.75; transform: scale(0.99); }
 
     .btn-secondary {
@@ -140,7 +131,8 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .btn-secondary:hover { color: var(--text); border-color: var(--dim); }
+    .btn-secondary:hover  { color: var(--text); border-color: var(--dim); }
+    .btn-secondary:active { opacity: 0.7; }
 
     /* ── ALARM BANNER ── */
     #alarm-banner {
@@ -154,7 +146,7 @@
     #alarm-banner.active { display: block; }
     @keyframes alarmPulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.8; }
+      50%       { opacity: 0.8; }
     }
     .alarm-title {
       font-family: 'Bebas Neue', sans-serif;
@@ -166,7 +158,8 @@
       font-size: 0.7rem;
       color: rgba(255,255,255,0.85);
       margin-top: 0.3rem;
-      line-height: 1.5;
+      line-height: 1.6;
+      white-space: pre-line;
     }
     .btn-dismiss {
       margin-top: 0.75rem;
@@ -202,7 +195,6 @@
       color: var(--muted);
     }
     .badge.warn { background: var(--amber); color: #000; }
-    .badge.err  { background: var(--red);   color: #fff; }
 
     /* ── ALERT CARDS ── */
     #alerts-list .empty {
@@ -213,18 +205,21 @@
       border: 1px dashed var(--border);
       border-radius: 2px;
     }
-
     .alert-card {
       background: var(--bg2);
       border: 1px solid var(--border);
+      border-left: 3px solid var(--dim);
       border-radius: 2px;
       padding: 0.75rem;
       margin-bottom: 0.5rem;
-      transition: border-color 0.3s;
     }
-    .alert-card.in-zone {
-      border-color: var(--red);
-      box-shadow: 0 0 12px rgba(255, 59, 59, 0.15);
+    .alert-card.is-new {
+      border-left-color: var(--amber);
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
     .alert-card-top {
       display: flex;
@@ -242,7 +237,7 @@
       margin-top: 0.1rem;
       text-transform: uppercase;
     }
-    .alert-title {
+    .alert-title-text {
       font-size: 0.75rem;
       line-height: 1.45;
       color: var(--text);
@@ -255,11 +250,11 @@
       gap: 1rem;
       flex-wrap: wrap;
     }
-    .in-zone-tag {
-      margin-top: 0.45rem;
-      font-size: 0.7rem;
-      color: var(--red);
-      letter-spacing: 0.05em;
+    .new-tag {
+      margin-top: 0.4rem;
+      font-size: 0.6rem;
+      color: var(--amber);
+      letter-spacing: 0.08em;
     }
 
     /* ── LOG ── */
@@ -294,17 +289,17 @@
 
 <header>
   <div class="logo">BE▲LERT</div>
-  <div class="logo-sub">Zone Monitor</div>
+  <div class="logo-sub">Feed Monitor</div>
 </header>
 
 <div class="status-bar">
   <div class="stat">
-    <span class="stat-label">GPS</span>
-    <span class="stat-value idle" id="s-gps">OFF</span>
-  </div>
-  <div class="stat">
     <span class="stat-label">Feed</span>
     <span class="stat-value idle" id="s-feed">OFF</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Alerts</span>
+    <span class="stat-value idle" id="s-alerts">—</span>
   </div>
   <div class="stat">
     <span class="stat-label">Next poll</span>
@@ -319,7 +314,7 @@
   </button>
 
   <div id="alarm-banner">
-    <div class="alarm-title">⚠ ALERT ZONE DETECTED</div>
+    <div class="alarm-title">⚠ NEW ALERT ISSUED</div>
     <div class="alarm-items" id="alarm-items"></div>
     <button class="btn-dismiss" onclick="dismissAlarm()">Silence alarm</button>
   </div>
@@ -345,32 +340,30 @@
 
 <footer>
   <button class="btn-secondary" onclick="testAlarm()">Test alarm</button>
-  <button class="btn-secondary" onclick="forcePoll()" id="btn-poll" disabled>Poll now</button>
+  <button class="btn-secondary" id="btn-poll" onclick="forcePoll()" disabled>Poll now</button>
 </footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════════════════════════════
-const FEED_URL      = 'https://publicalerts.be/CapGateway/feed';
+const FEED_URL      = 'https://publicalerts.be/CapGateway/feed?outdated=false';
 const CORS_PROXY    = 'https://api.allorigins.win/raw?url=';
 const POLL_INTERVAL = 60; // seconds
 
 // ════════════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════════════
-let monitoring    = false;
-let wakeLock      = null;
-let pollTimer     = null;
-let cdTimer       = null;
-let countdown     = POLL_INTERVAL;
-let audioCtx      = null;
-let alarmTimer    = null;
-let alarmOn       = false;
-let gpsPos        = null;
-let gpsWatch      = null;
-let currentAlerts = [];
-let alertedGuids  = new Set();   // guids we've already alarmed for
+let monitoring   = false;
+let wakeLock     = null;
+let pollTimer    = null;
+let cdTimer      = null;
+let countdown    = POLL_INTERVAL;
+let audioCtx     = null;
+let alarmTimer   = null;
+let alarmOn      = false;
+let knownGuids   = new Set();   // GUIDs we have already alarmed for
+let isFirstPoll  = true;
 
 // ════════════════════════════════════════════════════════════════
 //  LOGGING
@@ -384,128 +377,101 @@ function log(msg, cls = '') {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  POINT-IN-POLYGON  (ray-casting, no library needed)
-// ════════════════════════════════════════════════════════════════
-function pip(lat, lon, ring) {
-  // ring = [{x: longitude, y: latitude}, ...]
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i].x, yi = ring[i].y;
-    const xj = ring[j].x, yj = ring[j].y;
-    if (((yi > lat) !== (yj > lat)) &&
-        (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-function alertsContainingPoint(alerts, lat, lon) {
-  return alerts.filter(item => {
-    //if (!item.area) return false;
-    return item.area.some(a =>
-      a.coordinates.some(ls => pip(lat, lon, ls.coordinates))
-    );
-  });
-}
-
-// ════════════════════════════════════════════════════════════════
-//  AUDIO ALARM  (Web Audio API — no external file needed)
+//  AUDIO ALARM
 // ════════════════════════════════════════════════════════════════
 function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
 function playBeep() {
   if (!audioCtx) return;
-  // Two-tone emergency siren pattern
+  // Two-tone siren: 880 Hz / 660 Hz, four pulses
   [[880, 0], [660, 0.28], [880, 0.56], [660, 0.84]].forEach(([freq, t]) => {
     const osc  = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    const start = audioCtx.currentTime + t;
-    osc.frequency.setValueAtTime(freq, start);
-    gain.gain.setValueAtTime(0.45, start);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
-    osc.start(start);
-    osc.stop(start + 0.25);
+    const s = audioCtx.currentTime + t;
+    osc.frequency.setValueAtTime(freq, s);
+    gain.gain.setValueAtTime(0.45, s);
+    gain.gain.exponentialRampToValueAtTime(0.001, s + 0.25);
+    osc.start(s);
+    osc.stop(s + 0.25);
   });
 }
 
-function startAlarm(items) {
-  if (alarmOn) return;
-  alarmOn = true;
+function startAlarm(newItems) {
+  // Update banner text (always show latest new items)
   document.getElementById('alarm-items').textContent =
-    items.map(i => '• ' + (i.title || i.description || i.guid)).join('\n');
+    newItems.map(i => '• ' + (i.title || i.description || i.guid)).join('\n');
   document.getElementById('alarm-banner').classList.add('active');
+
+  // If alarm is already ringing, don't restart the interval — just update the text
+  if (alarmOn) return;
+
+  alarmOn = true;
   playBeep();
   alarmTimer = setInterval(playBeep, 4000);
-  log('⚠ ALARM — you are in an alert zone!', 'err');
+  log(`⚠ Alarm — ${newItems.length} new alert(s)`, 'err');
 }
 
 function dismissAlarm() {
   alarmOn = false;
   clearInterval(alarmTimer);
   document.getElementById('alarm-banner').classList.remove('active');
-  log('Alarm silenced by user');
+  log('Alarm silenced');
 }
 
 function testAlarm() {
   initAudio();
   playBeep();
-  log('Test beep played');
+  log('Test beep');
 }
 
 // ════════════════════════════════════════════════════════════════
-//  RENDER ALERTS
+//  RENDER
 // ════════════════════════════════════════════════════════════════
-function renderAlerts(alerts, inZone) {
-  const inGuids = new Set(inZone.map(i => i.guid));
-  const el = document.getElementById('alerts-list');
+function renderAlerts(items, newGuids) {
   const badge = document.getElementById('alert-badge');
+  const list  = document.getElementById('alerts-list');
 
-  badge.textContent = alerts.length;
-  badge.className   = 'badge' + (inZone.length > 0 ? ' err' : alerts.length > 0 ? ' warn' : '');
+  badge.textContent = items.length;
+  badge.className   = items.length > 0 ? 'badge warn' : 'badge';
 
-  if (alerts.length === 0) {
-    el.innerHTML = '<div class="empty">No active alerts in Belgium</div>';
+  setStat('s-alerts', String(items.length), items.length > 0 ? 'warn' : 'ok');
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty">No active alerts in Belgium</div>';
     return;
   }
 
-  el.innerHTML = alerts.map(item => {
-    const isIn = inGuids.has(item.guid);
-    const cat  = (item.category || ['ALERT'])[0];
-    const exp  = item.expirationDate
+  list.innerHTML = items.map(item => {
+    const isNew = newGuids.has(item.guid);
+    const cat   = (item.category || ['ALERT'])[0];
+    const exp   = item.expirationDate
       ? new Date(item.expirationDate).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
       : '?';
     return `
-      <div class="alert-card${isIn ? ' in-zone' : ''}">
+      <div class="alert-card${isNew ? ' is-new' : ''}">
         <div class="alert-card-top">
           <span class="cat-badge">${cat}</span>
-          <span class="alert-title">${item.title || item.description || 'Alert'}</span>
+          <span class="alert-title-text">${item.title || item.description || 'Alert'}</span>
         </div>
         <div class="alert-meta">
           <span>Until ${exp}</span>
           <span>${item.lang || ''}</span>
         </div>
-        ${isIn ? '<div class="in-zone-tag">⚠ YOUR LOCATION IS IN THIS ZONE</div>' : ''}
+        ${isNew ? '<div class="new-tag">▲ NEW</div>' : ''}
       </div>`;
   }).join('');
 }
 
 // ════════════════════════════════════════════════════════════════
-//  FETCH FEED  (direct → CORS proxy fallback)
+//  FETCH  (direct → CORS proxy fallback)
 // ════════════════════════════════════════════════════════════════
 async function fetchAlerts() {
-  const urls = [
-    FEED_URL,
-    CORS_PROXY + encodeURIComponent(FEED_URL)
-  ];
-
+  const urls = [FEED_URL, CORS_PROXY + encodeURIComponent(FEED_URL)];
   for (let i = 0; i < urls.length; i++) {
     try {
       const res = await fetch(urls[i], { cache: 'no-store' });
@@ -514,7 +480,7 @@ async function fetchAlerts() {
       if (i > 0) log('Using CORS proxy', 'warn');
       return json.items || [];
     } catch (err) {
-      if (i === 0) log('Direct fetch blocked — trying proxy…', 'warn');
+      if (i === 0) log('Direct fetch blocked, retrying via proxy…', 'warn');
       else throw err;
     }
   }
@@ -527,79 +493,65 @@ async function poll() {
   setStat('s-feed', 'polling…', 'warn');
 
   try {
-    const alerts = await fetchAlerts();
-    currentAlerts = alerts;
-    setStat('s-feed', `OK (${alerts.length})`, alerts.length > 0 ? 'warn' : 'ok');
-    log(`Feed OK — ${alerts.length} alert(s)`, alerts.length > 0 ? 'warn' : 'ok');
+    const items = await fetchAlerts();
+    setStat('s-feed', 'OK', 'ok');
+    log(`Feed OK — ${items.length} alert(s)`, items.length > 0 ? 'warn' : 'ok');
 
-    // Purge expired guids
-    const liveGuids = new Set(alerts.map(a => a.guid));
-    for (const g of alertedGuids) {
-      if (!liveGuids.has(g)) alertedGuids.delete(g);
-    }
-
-    let inZone = [];
-    if (true) {
-      inZone = alertsContainingPoint(alerts, gpsPos.lat, gpsPos.lon);
-      for (const item of inZone) {
-        if (!alertedGuids.has(item.guid)) {
-          alertedGuids.add(item.guid);
-          startAlarm(inZone);
-        }
+    // Find GUIDs that are new to us
+    const newGuids = new Set();
+    for (const item of items) {
+      if (!knownGuids.has(item.guid)) {
+        newGuids.add(item.guid);
+        knownGuids.add(item.guid);
       }
     }
-    renderAlerts(alerts, inZone);
+
+    // Remove expired GUIDs so they can re-alarm if reissued
+    const liveGuids = new Set(items.map(i => i.guid));
+    for (const g of knownGuids) {
+      if (!liveGuids.has(g)) knownGuids.delete(g);
+    }
+
+    renderAlerts(items, newGuids);
+
+    // Alarm conditions:
+    // 1. First poll and feed is non-empty  → alarm for everything
+    // 2. Any subsequent poll with new GUIDs → alarm for new ones
+    const toAlarm = isFirstPoll
+      ? items                                          // all current items on startup
+      : items.filter(i => newGuids.has(i.guid));      // only genuinely new items
+
+    if (toAlarm.length > 0) {
+      startAlarm(toAlarm);
+    }
+
+    isFirstPoll = false;
 
   } catch (err) {
     setStat('s-feed', 'ERROR', 'err');
-    log(`Feed error: ${err.message}`, 'err');
+    log(`Fetch error: ${err.message}`, 'err');
   }
 
-  // Reset countdown
   countdown = POLL_INTERVAL;
 }
 
 async function forcePoll() {
   clearInterval(cdTimer);
   clearInterval(pollTimer);
+  countdown = POLL_INTERVAL;
   await poll();
   startPollLoop();
 }
 
 // ════════════════════════════════════════════════════════════════
-//  GPS WATCH
+//  POLL LOOP
 // ════════════════════════════════════════════════════════════════
-function startGPS() {
-  if (!navigator.geolocation) {
-    log('Geolocation not available', 'err');
-    setStat('s-gps', 'N/A', 'err');
-    return;
-  }
-
-  gpsWatch = navigator.geolocation.watchPosition(
-    pos => {
-      const acc = Math.round(pos.coords.accuracy);
-      gpsPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      setStat('s-gps', `±${acc}m`, acc < 150 ? 'ok' : 'warn');
-
-      // Zone check immediately on GPS update
-      if (currentAlerts.length > 0) {
-        const inZone = alertsContainingPoint(currentAlerts, gpsPos.lat, gpsPos.lon);
-        for (const item of inZone) {
-          if (!alertedGuids.has(item.guid)) {
-            alertedGuids.add(item.guid);
-            startAlarm(inZone);
-          }
-        }
-        renderAlerts(currentAlerts, inZone);
-      }
-    },
-    err => {
-      setStat('s-gps', 'denied', 'err');
-      log(`GPS: ${err.message}`, 'err');
-    },
-    { enableHighAccuracy: false, maximumAge: 30000, timeout: 15000 }
-  );
+function startPollLoop() {
+  pollTimer = setInterval(poll, POLL_INTERVAL * 1000);
+  cdTimer   = setInterval(() => {
+    countdown--;
+    setStat('s-next', countdown + 's', '');
+  }, 1000);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -626,54 +578,39 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ════════════════════════════════════════════════════════════════
-//  POLL LOOP HELPERS
-// ════════════════════════════════════════════════════════════════
-function startPollLoop() {
-  pollTimer = setInterval(poll, POLL_INTERVAL * 1000);
-  cdTimer   = setInterval(() => {
-    countdown--;
-    setStat('s-next', countdown + 's', '');
-  }, 1000);
-}
-
-// ════════════════════════════════════════════════════════════════
-//  TOGGLE MONITOR
+//  TOGGLE
 // ════════════════════════════════════════════════════════════════
 async function toggleMonitor() {
   if (!monitoring) {
-    // ── START ──
-    initAudio(); // must happen inside user gesture
+    initAudio(); // must happen inside user gesture for iOS
 
-    monitoring = true;
-    const btn = document.getElementById('main-btn');
-    btn.textContent = '⏹ Stop Monitoring';
-    btn.className = 'btn-primary stop';
-    document.getElementById('btn-poll').disabled = false;
+    monitoring  = true;
+    isFirstPoll = true;
+    knownGuids.clear();
+
+    document.getElementById('main-btn').textContent = '⏹ Stop Monitoring';
+    document.getElementById('main-btn').className   = 'btn-primary stop';
+    document.getElementById('btn-poll').disabled    = false;
 
     await acquireWakeLock();
-    startGPS();
     log('Monitoring started', 'ok');
-
-    await poll(); // immediate first poll
+    await poll();
     startPollLoop();
 
   } else {
-    // ── STOP ──
     monitoring = false;
     clearInterval(pollTimer);
     clearInterval(cdTimer);
-    if (gpsWatch !== null) navigator.geolocation.clearWatch(gpsWatch);
     if (wakeLock) { try { await wakeLock.release(); } catch {} wakeLock = null; }
     if (alarmOn) dismissAlarm();
 
-    const btn = document.getElementById('main-btn');
-    btn.textContent = '▶ Start Monitoring';
-    btn.className = 'btn-primary start';
-    document.getElementById('btn-poll').disabled = true;
+    document.getElementById('main-btn').textContent = '▶ Start Monitoring';
+    document.getElementById('main-btn').className   = 'btn-primary start';
+    document.getElementById('btn-poll').disabled    = true;
 
-    setStat('s-gps',  'OFF', 'idle');
-    setStat('s-feed', 'OFF', 'idle');
-    setStat('s-next', '—',   'idle');
+    setStat('s-feed',   'OFF', 'idle');
+    setStat('s-alerts', '—',   'idle');
+    setStat('s-next',   '—',   'idle');
     log('Monitoring stopped');
   }
 }
@@ -684,10 +621,9 @@ async function toggleMonitor() {
 function setStat(id, text, cls) {
   const el = document.getElementById(id);
   el.textContent = text;
-  el.className = 'stat-value ' + (cls || '');
+  el.className   = 'stat-value ' + (cls || '');
 }
 
-// Register service worker for installability
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
