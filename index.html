@@ -100,25 +100,57 @@
       gap: 0.875rem;
     }
 
-    /* ── START BUTTON ── */
-    .btn-primary {
-      width: 100%;
-      padding: 1rem;
-      border: none;
-      border-radius: 2px;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.25rem;
-      letter-spacing: 0.1em;
-      cursor: pointer;
-      transition: all 0.15s;
+    /* ── TAP OVERLAY ── */
+    #tap-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: var(--bg);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
+      gap: 1.5rem;
+      cursor: pointer;
+      transition: opacity 0.5s ease;
     }
-    .btn-primary.start { background: var(--amber); color: #000; }
-    .btn-primary.stop  { background: transparent; color: var(--red); border: 1px solid var(--red); }
-    .btn-primary:active { opacity: 0.75; transform: scale(0.99); }
+    #tap-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .tap-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.5rem;
+      color: var(--amber);
+      letter-spacing: 0.08em;
+    }
+    .tap-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    .tap-icon {
+      font-size: 3rem;
+      animation: tapBounce 1.4s ease-in-out infinite;
+    }
+    .tap-note {
+      font-size: 0.6rem;
+      color: var(--dim);
+      letter-spacing: 0.1em;
+      text-align: center;
+      padding: 0 2rem;
+      line-height: 1.8;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+    @keyframes tapBounce {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(8px); }
+    }
 
     .btn-secondary {
       padding: 0.5rem 0.875rem;
@@ -307,11 +339,14 @@
   </div>
 </div>
 
-<main>
+<div id="tap-overlay" onclick="activateAudio()">
+  <div class="tap-logo">BE▲LERT</div>
+  <div class="tap-icon">👆</div>
+  <div class="tap-label">Tap anywhere to activate</div>
+  <div class="tap-note">Required once to enable alarm sound.<br>Monitoring starts automatically.</div>
+</div>
 
-  <button class="btn-primary start" id="main-btn" onclick="toggleMonitor()">
-    ▶ Start Monitoring
-  </button>
+<main>
 
   <div id="alarm-banner">
     <div class="alarm-title">⚠ NEW ALERT ISSUED</div>
@@ -340,7 +375,8 @@
 
 <footer>
   <button class="btn-secondary" onclick="testAlarm()">Test alarm</button>
-  <button class="btn-secondary" id="btn-poll" onclick="forcePoll()" disabled>Poll now</button>
+  <button class="btn-secondary" id="btn-poll" onclick="forcePoll()">Poll now</button>
+  <button class="btn-secondary" id="btn-stop" onclick="stopMonitor()" style="color:var(--red);border-color:var(--red);display:none">■ Stop</button>
 </footer>
 
 <script>
@@ -348,22 +384,23 @@
 //  CONFIG
 // ════════════════════════════════════════════════════════════════
 const FEED_URL      = 'https://publicalerts.be/CapGateway/feed?outdated=false';
-const CORS_PROXY    = 'https://api.allorigins.win/raw?url=';
 const POLL_INTERVAL = 60; // seconds
 
 // ════════════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════════════
-let monitoring   = false;
-let wakeLock     = null;
-let pollTimer    = null;
-let cdTimer      = null;
-let countdown    = POLL_INTERVAL;
-let audioCtx     = null;
-let alarmTimer   = null;
-let alarmOn      = false;
-let knownGuids   = new Set();   // GUIDs we have already alarmed for
-let isFirstPoll  = true;
+let monitoring    = false;
+let wakeLock      = null;
+let pollTimer     = null;
+let cdTimer       = null;
+let countdown     = POLL_INTERVAL;
+let audioCtx      = null;
+let audioReady    = false;   // true only after user tap (browser requirement)
+let pendingAlarm  = null;    // items waiting to alarm before audio was ready
+let alarmTimer    = null;
+let alarmOn       = false;
+let knownGuids    = new Set();
+let isFirstPoll   = true;
 
 // ════════════════════════════════════════════════════════════════
 //  LOGGING
@@ -382,6 +419,7 @@ function log(msg, cls = '') {
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
+  audioReady = true;
 }
 
 function playBeep() {
@@ -402,14 +440,19 @@ function playBeep() {
 }
 
 function startAlarm(newItems) {
-  // Update banner text (always show latest new items)
   document.getElementById('alarm-items').textContent =
     newItems.map(i => '• ' + (i.title || i.description || i.guid)).join('\n');
   document.getElementById('alarm-banner').classList.add('active');
 
-  // If alarm is already ringing, don't restart the interval — just update the text
-  if (alarmOn) return;
+  if (!audioReady) {
+    // Audio not yet unlocked — store items and play as soon as user taps
+    pendingAlarm = newItems;
+    log(`⚠ Alert detected — tap screen to hear alarm`, 'warn');
+    return;
+  }
 
+  pendingAlarm = null;
+  if (alarmOn) return; // already ringing, banner already updated above
   alarmOn = true;
   playBeep();
   alarmTimer = setInterval(playBeep, 4000);
@@ -468,22 +511,42 @@ function renderAlerts(items, newGuids) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  FETCH  (direct → CORS proxy fallback)
+//  FETCH  (direct → 3 CORS proxies in rotation)
 // ════════════════════════════════════════════════════════════════
+const PROXIES = [
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+];
+let proxyIndex = 0; // start with last-known working proxy
+
 async function fetchAlerts() {
-  const urls = [FEED_URL, CORS_PROXY + encodeURIComponent(FEED_URL)];
-  for (let i = 0; i < urls.length; i++) {
+  // 1. Try direct first
+  try {
+    const res = await fetch(FEED_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()).items || [];
+  } catch {
+    log('Direct fetch blocked — trying proxies…', 'warn');
+  }
+
+  // 2. Try each proxy, starting from last successful one
+  for (let attempt = 0; attempt < PROXIES.length; attempt++) {
+    const idx = (proxyIndex + attempt) % PROXIES.length;
+    const url = PROXIES[idx](FEED_URL);
     try {
-      const res = await fetch(urls[i], { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (i > 0) log('Using CORS proxy', 'warn');
+      proxyIndex = idx; // remember what worked
+      log(`Proxy ${idx + 1} OK`, 'warn');
       return json.items || [];
     } catch (err) {
-      if (i === 0) log('Direct fetch blocked, retrying via proxy…', 'warn');
-      else throw err;
+      log(`Proxy ${idx + 1} failed: ${err.message}`, 'err');
     }
   }
+
+  throw new Error('All proxies failed');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -578,41 +641,50 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ════════════════════════════════════════════════════════════════
-//  TOGGLE
+//  ACTIVATE AUDIO  (called by tap overlay — satisfies browser gesture req.)
 // ════════════════════════════════════════════════════════════════
-async function toggleMonitor() {
-  if (!monitoring) {
-    initAudio(); // must happen inside user gesture for iOS
+async function activateAudio() {
+  initAudio();
+  document.getElementById('tap-overlay').classList.add('hidden');
+  await acquireWakeLock();
+  log('Audio activated', 'ok');
 
-    monitoring  = true;
-    isFirstPoll = true;
-    knownGuids.clear();
-
-    document.getElementById('main-btn').textContent = '⏹ Stop Monitoring';
-    document.getElementById('main-btn').className   = 'btn-primary stop';
-    document.getElementById('btn-poll').disabled    = false;
-
-    await acquireWakeLock();
-    log('Monitoring started', 'ok');
-    await poll();
-    startPollLoop();
-
-  } else {
-    monitoring = false;
-    clearInterval(pollTimer);
-    clearInterval(cdTimer);
-    if (wakeLock) { try { await wakeLock.release(); } catch {} wakeLock = null; }
-    if (alarmOn) dismissAlarm();
-
-    document.getElementById('main-btn').textContent = '▶ Start Monitoring';
-    document.getElementById('main-btn').className   = 'btn-primary start';
-    document.getElementById('btn-poll').disabled    = true;
-
-    setStat('s-feed',   'OFF', 'idle');
-    setStat('s-alerts', '—',   'idle');
-    setStat('s-next',   '—',   'idle');
-    log('Monitoring stopped');
+  // If an alarm was waiting for audio, fire it now
+  if (pendingAlarm) {
+    const items = pendingAlarm;
+    pendingAlarm = null;
+    alarmOn = true;
+    playBeep();
+    alarmTimer = setInterval(playBeep, 4000);
+    log(`⚠ Alarm — ${items.length} alert(s) already active`, 'err');
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  START / STOP
+// ════════════════════════════════════════════════════════════════
+async function startMonitor() {
+  monitoring  = true;
+  isFirstPoll = true;
+  knownGuids.clear();
+  document.getElementById('btn-stop').style.display = '';
+  setStat('s-feed', 'starting…', 'warn');
+  log('Monitoring started', 'ok');
+  await poll();
+  startPollLoop();
+}
+
+function stopMonitor() {
+  monitoring = false;
+  clearInterval(pollTimer);
+  clearInterval(cdTimer);
+  if (wakeLock) { try { wakeLock.release(); } catch {} wakeLock = null; }
+  if (alarmOn) dismissAlarm();
+  document.getElementById('btn-stop').style.display = 'none';
+  setStat('s-feed',   'OFF', 'idle');
+  setStat('s-alerts', '—',   'idle');
+  setStat('s-next',   '—',   'idle');
+  log('Monitoring stopped');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -627,6 +699,9 @@ function setStat(id, text, cls) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+
+// Auto-start polling as soon as the page loads
+window.addEventListener('DOMContentLoaded', startMonitor);
 </script>
 </body>
 </html>
