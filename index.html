@@ -402,7 +402,7 @@ function pip(lat, lon, ring) {
 
 function alertsContainingPoint(alerts, lat, lon) {
   return alerts.filter(item => {
-    if (!item.area) return false;
+    //if (!item.area) return false;
     return item.area.some(a =>
       a.coordinates.some(ls => pip(lat, lon, ls.coordinates))
     );
@@ -539,7 +539,7 @@ async function poll() {
     }
 
     let inZone = [];
-    if (gpsPos) {
+    if (true) {
       inZone = alertsContainingPoint(alerts, gpsPos.lat, gpsPos.lon);
       for (const item of inZone) {
         if (!alertedGuids.has(item.guid)) {
