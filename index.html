@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080c14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="BE-Alert">
+  <title>BE-Alert Monitor</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:      #080c14;
+      --bg2:     #0f1625;
+      --bg3:     #1a2235;
+      --border:  #1e2d45;
+      --text:    #dce8ff;
+      --muted:   #4a6080;
+      --dim:     #2a3d58;
+      --amber:   #f5a623;
+      --red:     #ff3b3b;
+      --green:   #00e676;
+      --blue:    #4fc3f7;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      background: linear-gradient(180deg, #0c1520 0%, var(--bg) 100%);
+    }
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.75rem;
+      letter-spacing: 0.05em;
+      line-height: 1;
+      color: var(--amber);
+    }
+    .logo-sub {
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--border);
+    }
+    .stat {
+      padding: 0.6rem 1rem;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .stat:last-child { border-right: none; }
+    .stat-label {
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+    .stat-value {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--dim);
+      transition: color 0.3s;
+    }
+    .stat-value.ok   { color: var(--green); }
+    .stat-value.warn { color: var(--amber); }
+    .stat-value.err  { color: var(--red);   }
+    .stat-value.idle { color: var(--muted); }
+
+    /* ── MAIN ── */
+    main {
+      flex: 1;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+    }
+
+    /* ── START BUTTON ── */
+    .btn-primary {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 2px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.25rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn-primary.start {
+      background: var(--amber);
+      color: #000;
+    }
+    .btn-primary.stop {
+      background: transparent;
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+    .btn-primary:active { opacity: 0.75; transform: scale(0.99); }
+
+    .btn-secondary {
+      padding: 0.5rem 0.875rem;
+      background: var(--bg3);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--dim); }
+
+    /* ── ALARM BANNER ── */
+    #alarm-banner {
+      display: none;
+      background: var(--red);
+      border-radius: 2px;
+      padding: 1rem;
+      text-align: center;
+      animation: alarmPulse 0.8s ease-in-out infinite;
+    }
+    #alarm-banner.active { display: block; }
+    @keyframes alarmPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+    .alarm-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+    .alarm-items {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.85);
+      margin-top: 0.3rem;
+      line-height: 1.5;
+    }
+    .btn-dismiss {
+      margin-top: 0.75rem;
+      padding: 0.4rem 1.25rem;
+      background: rgba(0,0,0,0.25);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 2px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+
+    /* ── SECTION HEADER ── */
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+    }
+    .section-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+    .badge {
+      padding: 0.1rem 0.45rem;
+      font-size: 0.6rem;
+      font-weight: 700;
+      border-radius: 2px;
+      background: var(--bg3);
+      color: var(--muted);
+    }
+    .badge.warn { background: var(--amber); color: #000; }
+    .badge.err  { background: var(--red);   color: #fff; }
+
+    /* ── ALERT CARDS ── */
+    #alerts-list .empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.7rem;
+      padding: 1.5rem 0;
+      border: 1px dashed var(--border);
+      border-radius: 2px;
+    }
+
+    .alert-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      transition: border-color 0.3s;
+    }
+    .alert-card.in-zone {
+      border-color: var(--red);
+      box-shadow: 0 0 12px rgba(255, 59, 59, 0.15);
+    }
+    .alert-card-top {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+    }
+    .cat-badge {
+      font-size: 0.55rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 2px;
+      background: var(--bg3);
+      color: var(--amber);
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      text-transform: uppercase;
+    }
+    .alert-title {
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: var(--text);
+    }
+    .alert-meta {
+      margin-top: 0.45rem;
+      font-size: 0.6rem;
+      color: var(--muted);
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .in-zone-tag {
+      margin-top: 0.45rem;
+      font-size: 0.7rem;
+      color: var(--red);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── LOG ── */
+    #log {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 0.5rem 0.75rem;
+      height: 9rem;
+      overflow-y: auto;
+      font-size: 0.62rem;
+      line-height: 1.9;
+      color: var(--muted);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    #log .l-ok   { color: var(--green); }
+    #log .l-warn { color: var(--amber); }
+    #log .l-err  { color: var(--red);   }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 0.75rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BE▲LERT</div>
+  <div class="logo-sub">Zone Monitor</div>
+</header>
+
+<div class="status-bar">
+  <div class="stat">
+    <span class="stat-label">GPS</span>
+    <span class="stat-value idle" id="s-gps">OFF</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Feed</span>
+    <span class="stat-value idle" id="s-feed">OFF</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Next poll</span>
+    <span class="stat-value idle" id="s-next">—</span>
+  </div>
+</div>
+
+<main>
+
+  <button class="btn-primary start" id="main-btn" onclick="toggleMonitor()">
+    ▶ Start Monitoring
+  </button>
+
+  <div id="alarm-banner">
+    <div class="alarm-title">⚠ ALERT ZONE DETECTED</div>
+    <div class="alarm-items" id="alarm-items"></div>
+    <button class="btn-dismiss" onclick="dismissAlarm()">Silence alarm</button>
+  </div>
+
+  <div>
+    <div class="section-head">
+      <span class="section-label">Active alerts</span>
+      <span class="badge" id="alert-badge">0</span>
+    </div>
+    <div id="alerts-list">
+      <div class="empty">No active alerts</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-head">
+      <span class="section-label">System log</span>
+    </div>
+    <div id="log"></div>
+  </div>
+
+</main>
+
+<footer>
+  <button class="btn-secondary" onclick="testAlarm()">Test alarm</button>
+  <button class="btn-secondary" onclick="forcePoll()" id="btn-poll" disabled>Poll now</button>
+</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════════════
+const FEED_URL      = 'https://publicalerts.be/CapGateway/feed?outdated=false';
+const CORS_PROXY    = 'https://api.allorigins.win/raw?url=';
+const POLL_INTERVAL = 60; // seconds
+
+// ════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════
+let monitoring    = false;
+let wakeLock      = null;
+let pollTimer     = null;
+let cdTimer       = null;
+let countdown     = POLL_INTERVAL;
+let audioCtx      = null;
+let alarmTimer    = null;
+let alarmOn       = false;
+let gpsPos        = null;
+let gpsWatch      = null;
+let currentAlerts = [];
+let alertedGuids  = new Set();   // guids we've already alarmed for
+
+// ════════════════════════════════════════════════════════════════
+//  LOGGING
+// ════════════════════════════════════════════════════════════════
+function log(msg, cls = '') {
+  const el = document.getElementById('log');
+  const ts = new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  el.insertAdjacentHTML('beforeend',
+    `<span class="${cls ? 'l-' + cls : ''}">[${ts}] ${msg}</span>\n`);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  POINT-IN-POLYGON  (ray-casting, no library needed)
+// ════════════════════════════════════════════════════════════════
+function pip(lat, lon, ring) {
+  // ring = [{x: longitude, y: latitude}, ...]
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i].x, yi = ring[i].y;
+    const xj = ring[j].x, yj = ring[j].y;
+    if (((yi > lat) !== (yj > lat)) &&
+        (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function alertsContainingPoint(alerts, lat, lon) {
+  return alerts.filter(item => {
+    if (!item.area) return false;
+    return item.area.some(a =>
+      a.coordinates.some(ls => pip(lat, lon, ls.coordinates))
+    );
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  AUDIO ALARM  (Web Audio API — no external file needed)
+// ════════════════════════════════════════════════════════════════
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playBeep() {
+  if (!audioCtx) return;
+  // Two-tone emergency siren pattern
+  [[880, 0], [660, 0.28], [880, 0.56], [660, 0.84]].forEach(([freq, t]) => {
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const start = audioCtx.currentTime + t;
+    osc.frequency.setValueAtTime(freq, start);
+    gain.gain.setValueAtTime(0.45, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+    osc.start(start);
+    osc.stop(start + 0.25);
+  });
+}
+
+function startAlarm(items) {
+  if (alarmOn) return;
+  alarmOn = true;
+  document.getElementById('alarm-items').textContent =
+    items.map(i => '• ' + (i.title || i.description || i.guid)).join('\n');
+  document.getElementById('alarm-banner').classList.add('active');
+  playBeep();
+  alarmTimer = setInterval(playBeep, 4000);
+  log('⚠ ALARM — you are in an alert zone!', 'err');
+}
+
+function dismissAlarm() {
+  alarmOn = false;
+  clearInterval(alarmTimer);
+  document.getElementById('alarm-banner').classList.remove('active');
+  log('Alarm silenced by user');
+}
+
+function testAlarm() {
+  initAudio();
+  playBeep();
+  log('Test beep played');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER ALERTS
+// ════════════════════════════════════════════════════════════════
+function renderAlerts(alerts, inZone) {
+  const inGuids = new Set(inZone.map(i => i.guid));
+  const el = document.getElementById('alerts-list');
+  const badge = document.getElementById('alert-badge');
+
+  badge.textContent = alerts.length;
+  badge.className   = 'badge' + (inZone.length > 0 ? ' err' : alerts.length > 0 ? ' warn' : '');
+
+  if (alerts.length === 0) {
+    el.innerHTML = '<div class="empty">No active alerts in Belgium</div>';
+    return;
+  }
+
+  el.innerHTML = alerts.map(item => {
+    const isIn = inGuids.has(item.guid);
+    const cat  = (item.category || ['ALERT'])[0];
+    const exp  = item.expirationDate
+      ? new Date(item.expirationDate).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+      : '?';
+    return `
+      <div class="alert-card${isIn ? ' in-zone' : ''}">
+        <div class="alert-card-top">
+          <span class="cat-badge">${cat}</span>
+          <span class="alert-title">${item.title || item.description || 'Alert'}</span>
+        </div>
+        <div class="alert-meta">
+          <span>Until ${exp}</span>
+          <span>${item.lang || ''}</span>
+        </div>
+        ${isIn ? '<div class="in-zone-tag">⚠ YOUR LOCATION IS IN THIS ZONE</div>' : ''}
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FETCH FEED  (direct → CORS proxy fallback)
+// ════════════════════════════════════════════════════════════════
+async function fetchAlerts() {
+  const urls = [
+    FEED_URL,
+    CORS_PROXY + encodeURIComponent(FEED_URL)
+  ];
+
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const res = await fetch(urls[i], { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (i > 0) log('Using CORS proxy', 'warn');
+      return json.items || [];
+    } catch (err) {
+      if (i === 0) log('Direct fetch blocked — trying proxy…', 'warn');
+      else throw err;
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  POLL
+// ════════════════════════════════════════════════════════════════
+async function poll() {
+  setStat('s-feed', 'polling…', 'warn');
+
+  try {
+    const alerts = await fetchAlerts();
+    currentAlerts = alerts;
+    setStat('s-feed', `OK (${alerts.length})`, alerts.length > 0 ? 'warn' : 'ok');
+    log(`Feed OK — ${alerts.length} alert(s)`, alerts.length > 0 ? 'warn' : 'ok');
+
+    // Purge expired guids
+    const liveGuids = new Set(alerts.map(a => a.guid));
+    for (const g of alertedGuids) {
+      if (!liveGuids.has(g)) alertedGuids.delete(g);
+    }
+
+    let inZone = [];
+    if (gpsPos) {
+      inZone = alertsContainingPoint(alerts, gpsPos.lat, gpsPos.lon);
+      for (const item of inZone) {
+        if (!alertedGuids.has(item.guid)) {
+          alertedGuids.add(item.guid);
+          startAlarm(inZone);
+        }
+      }
+    }
+    renderAlerts(alerts, inZone);
+
+  } catch (err) {
+    setStat('s-feed', 'ERROR', 'err');
+    log(`Feed error: ${err.message}`, 'err');
+  }
+
+  // Reset countdown
+  countdown = POLL_INTERVAL;
+}
+
+async function forcePoll() {
+  clearInterval(cdTimer);
+  clearInterval(pollTimer);
+  await poll();
+  startPollLoop();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GPS WATCH
+// ════════════════════════════════════════════════════════════════
+function startGPS() {
+  if (!navigator.geolocation) {
+    log('Geolocation not available', 'err');
+    setStat('s-gps', 'N/A', 'err');
+    return;
+  }
+
+  gpsWatch = navigator.geolocation.watchPosition(
+    pos => {
+      const acc = Math.round(pos.coords.accuracy);
+      gpsPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      setStat('s-gps', `±${acc}m`, acc < 150 ? 'ok' : 'warn');
+
+      // Zone check immediately on GPS update
+      if (currentAlerts.length > 0) {
+        const inZone = alertsContainingPoint(currentAlerts, gpsPos.lat, gpsPos.lon);
+        for (const item of inZone) {
+          if (!alertedGuids.has(item.guid)) {
+            alertedGuids.add(item.guid);
+            startAlarm(inZone);
+          }
+        }
+        renderAlerts(currentAlerts, inZone);
+      }
+    },
+    err => {
+      setStat('s-gps', 'denied', 'err');
+      log(`GPS: ${err.message}`, 'err');
+    },
+    { enableHighAccuracy: false, maximumAge: 30000, timeout: 15000 }
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+//  WAKE LOCK
+// ════════════════════════════════════════════════════════════════
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) {
+    log('Wake Lock not supported — keep screen on manually', 'warn');
+    return;
+  }
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    log('Wake Lock active — screen will stay on', 'ok');
+    wakeLock.addEventListener('release', () => log('Wake Lock released', 'warn'));
+  } catch (e) {
+    log(`Wake Lock failed: ${e.message}`, 'warn');
+  }
+}
+
+document.addEventListener('visibilitychange', async () => {
+  if (monitoring && document.visibilityState === 'visible') {
+    if (!wakeLock || wakeLock.released) await acquireWakeLock();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+//  POLL LOOP HELPERS
+// ════════════════════════════════════════════════════════════════
+function startPollLoop() {
+  pollTimer = setInterval(poll, POLL_INTERVAL * 1000);
+  cdTimer   = setInterval(() => {
+    countdown--;
+    setStat('s-next', countdown + 's', '');
+  }, 1000);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TOGGLE MONITOR
+// ════════════════════════════════════════════════════════════════
+async function toggleMonitor() {
+  if (!monitoring) {
+    // ── START ──
+    initAudio(); // must happen inside user gesture
+
+    monitoring = true;
+    const btn = document.getElementById('main-btn');
+    btn.textContent = '⏹ Stop Monitoring';
+    btn.className = 'btn-primary stop';
+    document.getElementById('btn-poll').disabled = false;
+
+    await acquireWakeLock();
+    startGPS();
+    log('Monitoring started', 'ok');
+
+    await poll(); // immediate first poll
+    startPollLoop();
+
+  } else {
+    // ── STOP ──
+    monitoring = false;
+    clearInterval(pollTimer);
+    clearInterval(cdTimer);
+    if (gpsWatch !== null) navigator.geolocation.clearWatch(gpsWatch);
+    if (wakeLock) { try { await wakeLock.release(); } catch {} wakeLock = null; }
+    if (alarmOn) dismissAlarm();
+
+    const btn = document.getElementById('main-btn');
+    btn.textContent = '▶ Start Monitoring';
+    btn.className = 'btn-primary start';
+    document.getElementById('btn-poll').disabled = true;
+
+    setStat('s-gps',  'OFF', 'idle');
+    setStat('s-feed', 'OFF', 'idle');
+    setStat('s-next', '—',   'idle');
+    log('Monitoring stopped');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════════════
+function setStat(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'stat-value ' + (cls || '');
+}
+
+// Register service worker for installability
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
