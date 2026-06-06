@@ -514,7 +514,7 @@ function renderAlerts(items, newGuids) {
 //  FETCH  (direct → 3 CORS proxies in rotation)
 // ════════════════════════════════════════════════════════════════
 const PROXIES = [
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  () => `https://cool-flower-3a58.mybeautifulsubdomain.workers.dev/`, // your worker — no ?url= needed
   u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
 ];
